@@ -39,7 +39,7 @@ The current implementation is focused on:
 
 ## Settings
 
-Current settings live in [smart_local_ai/data/settings.json](C:/Users/world/.codex/worktrees/cc3a/Smart-Local-AI/smart_local_ai/data/settings.json).
+Current settings live in `smart_local_ai/data/settings.json`.
 
 Example:
 

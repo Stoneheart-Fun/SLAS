@@ -99,6 +99,7 @@ function FindBestLocalReachableEntityByType:start_thinking(ai, entity, args)
    self._started = false
    self._location = ai.CURRENT.location
    self._items_examined = 0
+   self._stage_items_examined = 0
    self._settings = _load_settings()
    self._stages = _build_stages(self._settings)
    self._stage_index = 0
@@ -126,16 +127,14 @@ function FindBestLocalReachableEntityByType:_start_next_stage(entity, args)
 
    self._best_item = nil
    self._best_rating = 0
+   self._stage_items_examined = 0
 
    if self._settings.debug_enabled then
       self._log:debug('%s starting %s search (%s)', tostring(entity), stage.label, tostring(stage.max_distance))
    end
 
    local exhausted = function()
-      if self._if then
-         self._if:destroy()
-         self._if = nil
-      end
+      self:_destroy_item_finder()
 
       if self._best_item then
          self:_set_result(self._best_item, self._best_rating, args)
@@ -150,7 +149,11 @@ function FindBestLocalReachableEntityByType:_start_next_stage(entity, args)
       end
 
       self._items_examined = self._items_examined + 1
-      if self._items_examined > args.max_items_to_examine then
+      self._stage_items_examined = self._stage_items_examined + 1
+      if self._stage_items_examined > args.max_items_to_examine then
+         if self._settings.debug_enabled then
+            self._log:debug('%s exhausted %s stage after %s candidates (%s total)', tostring(entity), stage.label, self._stage_items_examined, self._items_examined)
+         end
          exhausted()
          return true
       end
@@ -208,6 +211,10 @@ function FindBestLocalReachableEntityByType:stop_thinking(ai, entity, args)
       self._delay_start_timer = nil
    end
 
+   self:_destroy_item_finder()
+end
+
+function FindBestLocalReachableEntityByType:_destroy_item_finder()
    if self._if then
       self._if:destroy()
       self._if = nil
@@ -223,6 +230,7 @@ function FindBestLocalReachableEntityByType:_set_result(item, rating, args)
       return
    end
 
+   self:_destroy_item_finder()
    self._result = item
    self._ready = true
    self._ai:set_think_output({ item = item, rating = rating })
@@ -231,7 +239,7 @@ function FindBestLocalReachableEntityByType:_set_result(item, rating, args)
    end
 
    if self._settings.debug_enabled then
-      self._log:debug('selected %s rating=%s', tostring(item), tostring(rating))
+      self._log:debug('selected %s rating=%s after %s candidates in %s stage (%s total)', tostring(item), tostring(rating), self._stage_items_examined, tostring(self._stages[self._stage_index] and self._stages[self._stage_index].label), self._items_examined)
    end
 end
 
