@@ -45,13 +45,19 @@ Example:
 
 ```json
 {
+  "search_profile": "BALANCED",
   "local_radius": 32,
   "expanded_radius": 64,
   "global_fallback": true,
+  "max_items_to_examine": 140,
   "debug_enabled": false,
+  "log_search_stats": false,
+  "log_patch_state": true,
+  "search_log_interval": 50,
   "enable_for_hauling": true,
   "enable_for_fetching": true,
   "enable_for_restocking": false,
+  "restock_mode": "disabled",
   "disable_restock_errands": true,
   "enable_restock_throttle": true,
   "max_concurrent_restock_errands": 0,
@@ -63,6 +69,8 @@ Example:
 ## Debug Logging
 
 Set `debug_enabled` to `true` in the settings file to enable extra logging for staged searches and selected results.
+
+`search_profile` provides conservative presets for radius and per-stage search budget. `restock_mode` accepts `disabled`, `throttle`, or `vanilla`; the legacy booleans remain supported for compatibility.
 
 ## Known Limitations
 

@@ -1,9 +1,6 @@
 local SmartLocalAiRestockDirectorPatch = {}
-
-local function _load_settings()
-   local settings = radiant.resources.load_json('smart_local_ai:data:settings', true, false) or {}
-   return settings
-end
+local SmartLocalAiSettings = require 'lib.settings'
+local SmartLocalAiState = require 'lib.state'
 
 local function _clamp(value, min_value, max_value)
    if min_value and value < min_value then
@@ -16,12 +13,14 @@ local function _clamp(value, min_value, max_value)
 end
 
 function SmartLocalAiRestockDirectorPatch:_get_max_errands()
-   local settings = _load_settings()
-   if settings.disable_restock_errands then
+   local settings = SmartLocalAiSettings.get()
+   SmartLocalAiState.increment('restock_max_errands_calls')
+
+   if settings.restock_mode == 'disabled' then
       return 0
    end
 
-   if not settings.enable_restock_throttle then
+   if settings.restock_mode ~= 'throttle' then
       return self:_ace_old__get_max_errands()
    end
 

@@ -1,4 +1,5 @@
 local FillBackpackFromItems = radiant.class()
+local SmartLocalAiSettings = require 'lib.settings'
 
 FillBackpackFromItems.name = 'fill backpack from items'
 FillBackpackFromItems.does = 'stonehearth:fill_backpack_from_items'
@@ -28,28 +29,11 @@ FillBackpackFromItems.args = {
 }
 FillBackpackFromItems.priority = 0
 
-local DEFAULT_SETTINGS = {
-   local_radius = 32,
-   enable_for_restocking = true,
-}
-
-local function _load_settings()
-   local settings = radiant.resources.load_json('smart_local_ai:data:settings', true, false) or {}
-   local merged = {}
-   for key, value in pairs(DEFAULT_SETTINGS) do
-      merged[key] = settings[key]
-      if merged[key] == nil then
-         merged[key] = value
-      end
-   end
-   return merged
-end
-
 function FillBackpackFromItems:start_thinking(ai, entity, args)
 end
 
 local function _get_effective_range(range)
-   local settings = _load_settings()
+   local settings = SmartLocalAiSettings.get()
    if settings.enable_for_restocking then
       local local_radius = tonumber(settings.local_radius)
       if local_radius and local_radius > 0 then

@@ -1,5 +1,7 @@
 local Entity = _radiant.om.Entity
 local FindBestLocalReachableEntityByType = radiant.class()
+local SmartLocalAiSettings = require 'lib.settings'
+local SmartLocalAiState = require 'lib.state'
 
 FindBestLocalReachableEntityByType.name = 'find best local reachable entity by type'
 FindBestLocalReachableEntityByType.does = 'smart_local_ai:find_best_local_reachable_entity_by_type'
@@ -30,28 +32,6 @@ FindBestLocalReachableEntityByType.think_output = {
 FindBestLocalReachableEntityByType.priority = {0, 1}
 
 local log = radiant.log.create_logger('smart_local_ai')
-
-local DEFAULT_SETTINGS = {
-   local_radius = 32,
-   expanded_radius = 64,
-   global_fallback = true,
-   debug_enabled = false,
-   enable_for_hauling = true,
-   enable_for_fetching = true,
-}
-
-local function _load_settings()
-   local settings = radiant.resources.load_json('smart_local_ai:data:settings', true, false) or {}
-   local merged = {}
-   for key, value in pairs(DEFAULT_SETTINGS) do
-      merged[key] = settings[key]
-      if merged[key] == nil then
-         merged[key] = value
-      end
-   end
-
-   return merged
-end
 
 local function _build_stages(settings)
    if not settings.enable_for_hauling and not settings.enable_for_fetching then
@@ -100,19 +80,23 @@ function FindBestLocalReachableEntityByType:start_thinking(ai, entity, args)
    self._location = ai.CURRENT.location
    self._items_examined = 0
    self._stage_items_examined = 0
-   self._settings = _load_settings()
+   self._settings = SmartLocalAiSettings.get()
    self._stages = _build_stages(self._settings)
    self._stage_index = 0
    self._if = nil
    self._delay_start_timer = nil
    self._best_item = nil
    self._best_rating = 0
+   self._max_items_to_examine = tonumber(self._settings.max_items_to_examine) or args.max_items_to_examine
 
    if not self._location then
       ai:set_debug_progress('entity has no location')
+      SmartLocalAiState.increment('search_failures')
       return
    end
 
+   SmartLocalAiState.increment('searches_started')
+   SmartLocalAiState.maybe_log_search_summary(self._settings)
    self:_start_next_stage(entity, args)
 end
 
@@ -122,6 +106,8 @@ function FindBestLocalReachableEntityByType:_start_next_stage(entity, args)
 
    if not stage then
       self._ai:set_debug_progress('exhausted with no results')
+      SmartLocalAiState.increment('search_failures')
+      SmartLocalAiState.maybe_log_search_summary(self._settings)
       return
    end
 
@@ -150,7 +136,8 @@ function FindBestLocalReachableEntityByType:_start_next_stage(entity, args)
 
       self._items_examined = self._items_examined + 1
       self._stage_items_examined = self._stage_items_examined + 1
-      if self._stage_items_examined > args.max_items_to_examine then
+      if self._stage_items_examined > self._max_items_to_examine then
+         SmartLocalAiState.increment('stage_exhaustions')
          if self._settings.debug_enabled then
             self._log:debug('%s exhausted %s stage after %s candidates (%s total)', tostring(entity), stage.label, self._stage_items_examined, self._items_examined)
          end
@@ -237,6 +224,13 @@ function FindBestLocalReachableEntityByType:_set_result(item, rating, args)
    if args.rating_fn then
       self._ai:set_utility(rating)
    end
+
+   SmartLocalAiState.increment('search_results_found')
+   local stage = self._stages[self._stage_index]
+   if stage and stage.label == 'fallback' then
+      SmartLocalAiState.increment('fallback_results_found')
+   end
+   SmartLocalAiState.maybe_log_search_summary(self._settings)
 
    if self._settings.debug_enabled then
       self._log:debug('selected %s rating=%s after %s candidates in %s stage (%s total)', tostring(item), tostring(rating), self._stage_items_examined, tostring(self._stages[self._stage_index] and self._stages[self._stage_index].label), self._items_examined)

@@ -1,4 +1,5 @@
 local FindReachableEntityTypeAnywhere = radiant.class()
+local SmartLocalAiSettings = require 'lib.settings'
 
 FindReachableEntityTypeAnywhere.name = 'find reachable entity type anywhere'
 FindReachableEntityTypeAnywhere.does = 'stonehearth:find_reachable_entity_type_anywhere'
@@ -21,27 +22,6 @@ FindReachableEntityTypeAnywhere.priority = 1
 
 local NO_MATERIAL = stonehearth.constants.construction.NO_MATERIAL
 local log = radiant.log.create_logger('smart_local_ai')
-
-local DEFAULT_SETTINGS = {
-   local_radius = 32,
-   expanded_radius = 64,
-   global_fallback = true,
-   debug_enabled = false,
-   enable_for_fetching = true,
-}
-
-local function _load_settings()
-   local settings = radiant.resources.load_json('smart_local_ai:data:settings', true, false) or {}
-   local merged = {}
-   for key, value in pairs(DEFAULT_SETTINGS) do
-      merged[key] = settings[key]
-      if merged[key] == nil then
-         merged[key] = value
-      end
-   end
-
-   return merged
-end
 
 local function _build_search_stages(settings)
    if not settings.enable_for_fetching then
@@ -109,7 +89,7 @@ function FindReachableEntityTypeAnywhere:start_thinking(ai, entity, args)
    self._filter_fn = args.filter_fn
    self._log = log
    self._location = ai.CURRENT.location
-   self._settings = _load_settings()
+   self._settings = SmartLocalAiSettings.get()
    self._stages = _build_search_stages(self._settings)
    self._stage_index = 0
    self._active_search = nil
