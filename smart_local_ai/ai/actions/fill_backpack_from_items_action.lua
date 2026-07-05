@@ -1,5 +1,7 @@
 local FillBackpackFromItems = radiant.class()
+local SmartLocalAiLogger = require 'lib.logger'
 local SmartLocalAiSettings = require 'lib.settings'
+SmartLocalAiLogger.override_active('fill_backpack_from_items')
 
 FillBackpackFromItems.name = 'fill backpack from items'
 FillBackpackFromItems.does = 'stonehearth:fill_backpack_from_items'

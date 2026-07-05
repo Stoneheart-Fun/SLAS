@@ -1,4 +1,6 @@
 local RestWhenInjured = radiant.class()
+local SmartLocalAiLogger = require 'lib.logger'
+SmartLocalAiLogger.override_active('rest_when_injured')
 RestWhenInjured.name = 'rest when injured'
 RestWhenInjured.does = 'stonehearth:rest_when_injured'
 RestWhenInjured.args = {}

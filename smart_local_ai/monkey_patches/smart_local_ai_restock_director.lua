@@ -17,11 +17,20 @@ function SmartLocalAiRestockDirectorPatch:_get_max_errands()
    SmartLocalAiState.increment('restock_max_errands_calls')
 
    if settings.restock_mode == 'disabled' then
+      SmartLocalAiState.increment('restock_blocked')
+      SmartLocalAiState.set('restock_current_limit', 0)
       return 0
    end
 
    if settings.restock_mode ~= 'throttle' then
-      return self:_ace_old__get_max_errands()
+      local result = self:_ace_old__get_max_errands()
+      SmartLocalAiState.set('restock_current_limit', result or 0)
+      if result > 0 then
+         SmartLocalAiState.increment('restock_allowed')
+      else
+         SmartLocalAiState.increment('restock_blocked')
+      end
+      return result
    end
 
    local town = stonehearth.town:get_town(self._player_id)
@@ -37,6 +46,7 @@ function SmartLocalAiRestockDirectorPatch:_get_max_errands()
    local workers = task_group:get_workers()
    local disabled_workers = task_group:get_disabled_workers()
    local available_workers = math.max(0, radiant.size(workers) - radiant.size(disabled_workers))
+   SmartLocalAiState.set('restock_available_workers', available_workers)
 
    local workers_per_errand = tonumber(settings.restock_workers_per_errand) or 3
    if workers_per_errand < 1 then
@@ -50,7 +60,15 @@ function SmartLocalAiRestockDirectorPatch:_get_max_errands()
       tonumber(settings.max_concurrent_restock_errands) or 4
    )
 
-   return math.max(0, max_errands)
+   max_errands = math.max(0, max_errands)
+   SmartLocalAiState.set('restock_current_limit', max_errands)
+   if max_errands > 0 then
+      SmartLocalAiState.increment('restock_allowed')
+   else
+      SmartLocalAiState.increment('restock_blocked')
+   end
+
+   return max_errands
 end
 
 return SmartLocalAiRestockDirectorPatch

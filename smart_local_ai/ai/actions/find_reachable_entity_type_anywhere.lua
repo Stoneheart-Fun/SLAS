@@ -1,5 +1,7 @@
 local FindReachableEntityTypeAnywhere = radiant.class()
+local SmartLocalAiLogger = require 'lib.logger'
 local SmartLocalAiSettings = require 'lib.settings'
+local SmartLocalAiState = require 'lib.state'
 
 FindReachableEntityTypeAnywhere.name = 'find reachable entity type anywhere'
 FindReachableEntityTypeAnywhere.does = 'stonehearth:find_reachable_entity_type_anywhere'
@@ -22,6 +24,7 @@ FindReachableEntityTypeAnywhere.priority = 1
 
 local NO_MATERIAL = stonehearth.constants.construction.NO_MATERIAL
 local log = radiant.log.create_logger('smart_local_ai')
+SmartLocalAiLogger.override_active('find_reachable_entity_type_anywhere')
 
 local function _build_search_stages(settings)
    if not settings.enable_for_fetching then
@@ -93,6 +96,11 @@ function FindReachableEntityTypeAnywhere:start_thinking(ai, entity, args)
    self._stages = _build_search_stages(self._settings)
    self._stage_index = 0
    self._active_search = nil
+   self._items_examined = 0
+   self._stage_items_examined = 0
+   self._max_items_to_examine = tonumber(self._settings.max_items_to_examine) or 0
+   SmartLocalAiState.increment('search_calls')
+   SmartLocalAiState.increment('searches_started')
 
    if not self._location or args.material == NO_MATERIAL then
       ai:set_think_output({})
@@ -136,9 +144,24 @@ function FindReachableEntityTypeAnywhere:_start_next_stage(entity, args)
    self._stage_index = self._stage_index + 1
    local stage = self._stages[self._stage_index]
    if not stage then
+      SmartLocalAiState.increment('failed_searches')
+      SmartLocalAiState.increment('search_failures')
+      if self._settings.diagnostics_log_failed_searches then
+         SmartLocalAiLogger.failed_search({
+            time = stonehearth.calendar and stonehearth.calendar.get_elapsed_time and stonehearth.calendar:get_elapsed_time() or nil,
+            action = 'find_reachable_entity_type_anywhere',
+            stage = self._stages[self._stage_index - 1] and self._stages[self._stage_index - 1].label or 'none',
+            candidates = self._stage_items_examined,
+            fallback = self._stages[self._stage_index - 1] and string.find(self._stages[self._stage_index - 1].label, 'fallback', 1, true) ~= nil,
+            result = 'not_found',
+            reason = 'all_stages_exhausted',
+         })
+      end
       self._ai:reject('smart local search exhausted')
       return
    end
+
+   self._stage_items_examined = 0
 
    if self._settings.debug_enabled then
       self._log:debug('%s starting %s (%s)', tostring(entity), stage.label, tostring(stage.max_distance))
@@ -149,11 +172,19 @@ function FindReachableEntityTypeAnywhere:_start_next_stage(entity, args)
          self._active_search:destroy()
          self._active_search = nil
       end
+      if stage.label == 'fallback ground' or stage.label == 'fallback storage' then
+         SmartLocalAiState.increment('fallback_calls')
+      end
       self:_start_next_stage(entity, args)
    end
 
    if stage.kind == 'ground' then
       local found_cb = function(item)
+         self._items_examined = self._items_examined + 1
+         self._stage_items_examined = self._stage_items_examined + 1
+         SmartLocalAiState.add('total_candidates_examined', 1)
+         SmartLocalAiState.set_max('max_candidates_examined', self._stage_items_examined)
+
          local item_id = item:get_id()
          if self._ai.CURRENT.self_reserved[item_id] then
             return false
@@ -163,6 +194,32 @@ function FindReachableEntityTypeAnywhere:_start_next_stage(entity, args)
             return false
          end
 
+         SmartLocalAiState.increment('search_results_found')
+         if string.find(stage.label, 'fallback', 1, true) then
+            SmartLocalAiState.increment('fallback_calls')
+            SmartLocalAiState.increment('fallback_results_found')
+            if self._settings.diagnostics_log_fallbacks then
+               SmartLocalAiLogger.fallback({
+                  time = stonehearth.calendar and stonehearth.calendar.get_elapsed_time and stonehearth.calendar:get_elapsed_time() or nil,
+                  action = 'find_reachable_entity_type_anywhere',
+                  stage = stage.label,
+                  candidates = self._stage_items_examined,
+                  reason = 'fallback_result',
+               })
+            end
+         end
+         if self._settings.diagnostics_log_heavy_searches
+               and self._stage_items_examined >= self._settings.diagnostics_heavy_search_candidate_threshold then
+            SmartLocalAiState.increment('heavy_searches')
+            SmartLocalAiLogger.heavy_search({
+               time = stonehearth.calendar and stonehearth.calendar.get_elapsed_time and stonehearth.calendar:get_elapsed_time() or nil,
+               action = 'find_reachable_entity_type_anywhere',
+               stage = stage.label,
+               candidates = self._stage_items_examined,
+               result = 'found',
+               reason = 'heavy_search_threshold',
+            })
+         end
          self._ai:set_think_output({})
          return true
       end
@@ -188,6 +245,37 @@ function FindReachableEntityTypeAnywhere:_start_next_stage(entity, args)
             make_storage_filter_fn(args.filter_fn))
 
       local found_cb = function(storage)
+         self._items_examined = self._items_examined + 1
+         self._stage_items_examined = self._stage_items_examined + 1
+         SmartLocalAiState.add('total_candidates_examined', 1)
+         SmartLocalAiState.set_max('max_candidates_examined', self._stage_items_examined)
+
+         SmartLocalAiState.increment('search_results_found')
+         if string.find(stage.label, 'fallback', 1, true) then
+            SmartLocalAiState.increment('fallback_calls')
+            SmartLocalAiState.increment('fallback_results_found')
+            if self._settings.diagnostics_log_fallbacks then
+               SmartLocalAiLogger.fallback({
+                  time = stonehearth.calendar and stonehearth.calendar.get_elapsed_time and stonehearth.calendar:get_elapsed_time() or nil,
+                  action = 'find_reachable_entity_type_anywhere',
+                  stage = stage.label,
+                  candidates = self._stage_items_examined,
+                  reason = 'fallback_result',
+               })
+            end
+         end
+         if self._settings.diagnostics_log_heavy_searches
+               and self._stage_items_examined >= self._settings.diagnostics_heavy_search_candidate_threshold then
+            SmartLocalAiState.increment('heavy_searches')
+            SmartLocalAiLogger.heavy_search({
+               time = stonehearth.calendar and stonehearth.calendar.get_elapsed_time and stonehearth.calendar:get_elapsed_time() or nil,
+               action = 'find_reachable_entity_type_anywhere',
+               stage = stage.label,
+               candidates = self._stage_items_examined,
+               result = 'found',
+               reason = 'heavy_search_threshold',
+            })
+         end
          self._ai:set_think_output({})
          return true
       end

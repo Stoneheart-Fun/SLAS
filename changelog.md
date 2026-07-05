@@ -2,6 +2,28 @@
 
 All notable changes to `Smart Local AI` are documented here.
 
+## [0.3.0] - 2026-07-02
+
+### Added
+
+- added a structured diagnostics layer through `smart_local_ai/lib/logger.lua` and `smart_local_ai/lib/diagnostics.lua`
+- added periodic `[SLAS:SUMMARY]` output with settlement, search, fallback, and restock counters
+- added `[SLAS:HEAVY_SEARCH]`, `[SLAS:FAILED_SEARCH]`, and `[SLAS:FALLBACK]` events for staged search analysis
+- added loaded-override tracking so diagnostics can report which SLAS overrides actually initialized
+- added nested-settings compatibility for `diagnostics`, `local_search`, `restock`, and `debug` sections while keeping flat-key support
+
+### Changed
+
+- expanded diagnostics coverage from the local finder into `find_reachable_entity_type_anywhere`
+- moved startup logging to a clearer runtime boot sequence with explicit `[SLAS] settings loaded` output
+- extended restock metrics to report current throttled errand limit and available worker-derived capacity
+- included loaded override names and current restock limit in diagnostics summaries
+
+### Fixed
+
+- fixed nested `restock.mode` normalization so future config migration does not silently fall back to the wrong mode
+- fixed patch-state reporting so override visibility is captured from the shared runtime state instead of relying on guesswork
+
 ## [0.2.0] - 2026-07-01
 
 ### Added

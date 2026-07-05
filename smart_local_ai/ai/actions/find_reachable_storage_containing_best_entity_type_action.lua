@@ -1,4 +1,6 @@
 local Entity = _radiant.om.Entity
+local SmartLocalAiLogger = require 'lib.logger'
+SmartLocalAiLogger.override_active('find_reachable_storage_containing_best_entity_type')
 
 local FindReachableStorageContainingBestEntityType = radiant.class()
 

@@ -1,5 +1,7 @@
 local Entity = _radiant.om.Entity
 local PickupItemType = radiant.class()
+local SmartLocalAiLogger = require 'lib.logger'
+SmartLocalAiLogger.override_active('pickup_item_type')
 
 PickupItemType.name = 'pickup item type'
 PickupItemType.does = 'stonehearth:pickup_item_type'

@@ -1,5 +1,7 @@
 local Entity = _radiant.om.Entity
 local DropAndPickupItemType = class()
+local SmartLocalAiLogger = require 'lib.logger'
+SmartLocalAiLogger.override_active('drop_and_pickup_item_type')
 
 DropAndPickupItemType.name = 'pickup item type'
 DropAndPickupItemType.does = 'stonehearth_ace:drop_and_pickup_item_type'

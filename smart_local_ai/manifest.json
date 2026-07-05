@@ -4,7 +4,7 @@
     "namespace": "smart_local_ai",
     "version": 4
   },
-  "author": "OpenAI Codex",
+  "author": "Pavlo Yakymenko",
   "server_init_script": "file(smart_local_ai_server)",
   "dependencies": [
     "stonehearth",
